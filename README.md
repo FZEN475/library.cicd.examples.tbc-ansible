@@ -1,93 +1,227 @@
 # tbc-ansible
 
+# Общая логика
+* **job** не срабатывают на **TAG**
+* `destroy` - ручное выполнение или по таймеру `on_stop` `auto_stop_in`
+  * production не имеет этапа `destroy`
+* `review != PROD_REF || INTEG_REF`
+* `integration = INTEG_REF`
+* `staging = PROD_REF + destroy`
+* `production = PROD_REF - destroy`
+
+| Имя переменной  | Значение    | Действие GitLab                    |
+|-----------------|-------------|------------------------------------|
+| *_DISABLED      | "true"      | Исключить запуск job (when: never) |
+| *_PLAYBOOK_FILE | null или "" | Исключить запуск job (when: never) |
+
+---
+
+# LINT
+
+### ansible-lint-review
+Автоматическая проверка кода (lint) в ветках разработчиков.
+
+| № | Условие (if)                                              | Результат (если ИСТИНА) | Описание логики                                   |
+|---|-----------------------------------------------------------|-------------------------|---------------------------------------------------|
+| 1 | `$CI_COMMIT_TAG`                                          | when: never             | Исключить запуск на тегах                         |
+| 2 | `$ANSIBLE_LINT_DISABLED == "true"`                        | when: never             | Исключить запуск, если линтер выключен            |
+| 3 | `$ANSIBLE_REVIEW_PLAYBOOK_FILE == null \|\| ... == ""`    | when: never             | Исключить, если не задан плейбук для review       |
+| 4 | `$CI_COMMIT_REF_NAME =~ $INTEG_REF \|\| ... =~ $PROD_REF` | when: never             | Исключить запуск в ветках интеграции и продакшена |
+| 5 | `!reference [.test-policy, rules]`                        | (наследуется)           | Подключение общих правил тестирования             |
+
+### ansible-lint-integration
+Автоматическая проверка кода (lint) в интеграционной ветке.
+
+| № | Условие (if)                                          | Результат (если ИСТИНА) | Описание логики                                 |
+|---|-------------------------------------------------------|-------------------------|-------------------------------------------------|
+| 1 | `$CI_COMMIT_TAG`                                      | when: never             | Исключить запуск на тегах                       |
+| 2 | `$ANSIBLE_LINT_DISABLED == "true"`                    | when: never             | Исключить запуск, если линтер выключен          |
+| 3 | `$ANSIBLE_INTEG_PLAYBOOK_FILE == null \|\| ... == ""` | when: never             | Исключить, если не задан плейбук для интеграции |
+| 4 | `$CI_COMMIT_REF_NAME =~ $PROD_REF`                    | when: never             | Исключить запуск в ветке продакшена             |
+| 5 | `!reference [.test-policy, rules]`                    | (наследуется)           | Подключение общих правил тестирования           |
+
+### ansible-lint-staging
+Автоматическая проверка кода (lint) для окружения staging.
+
+| № | Условие (if)                                            | Результат (если ИСТИНА) | Описание логики                              |
+|---|---------------------------------------------------------|-------------------------|----------------------------------------------|
+| 1 | `$CI_COMMIT_TAG`                                        | when: never             | Исключить запуск на тегах                    |
+| 2 | `$ANSIBLE_LINT_DISABLED == "true"`                      | when: never             | Исключить запуск, если линтер выключен       |
+| 3 | `$ANSIBLE_STAGING_PLAYBOOK_FILE == null \|\| ... == ""` | when: never             | Исключить, если не задан плейбук для staging |
+| 4 | `!reference [.test-policy, rules]`                      | (наследуется)           | Подключение общих правил тестирования        |
+
+### ansible-lint-production
+Автоматическая проверка кода (lint) для финального продакшена.
+
+| № | Условие (if)                                         | Результат (если ИСТИНА) | Описание логики                                 |
+|---|------------------------------------------------------|-------------------------|-------------------------------------------------|
+| 1 | `$CI_COMMIT_TAG`                                     | when: never             | Исключить запуск на тегах                       |
+| 2 | `$ANSIBLE_LINT_DISABLED == "true"`                   | when: never             | Исключить запуск, если линтер выключен          |
+| 3 | `$ANSIBLE_PROD_PLAYBOOK_FILE == null \|\| ... == ""` | when: never             | Исключить, если не задан плейбук для продакшена |
+| 4 | `!reference [.test-policy, rules]`                   | (наследуется)           | Подключение общих правил тестирования           |
+
+---
+
+# CHECKOV
+
+### ansible-checkov
+Статический анализ безопасности (Checkov).
+
+| № | Условие (if)                          | Результат (если ИСТИНА) | Описание логики                         |
+|---|---------------------------------------|-------------------------|-----------------------------------------|
+| 1 | `$ANSIBLE_CHECKOV_DISABLED == "true"` | when: never             | Исключить запуск, если checkov выключен |
+| 2 | `!reference [.test-policy, rules]`    | (наследуется)           | Подключение общих правил тестирования   |
+
+---
+
+# APPLY
+
+### ansible-review
+Применение кода (apply) в ветках разработчиков (feature-branches).
+
+| № | Условие (if)                                            | Результат (если ИСТИНА)      | Описание логики                             |
+|---|---------------------------------------------------------|------------------------------|---------------------------------------------|
+| 1 | `$CI_COMMIT_TAG`                                        | when: never                  | Исключить запуск на тегах                   |
+| 2 | `$ANSIBLE_REVIEW_PLAYBOOK_FILE == null \|\| ... == ""`  | when: never                  | Исключить, если не задан плейбук для review |
+| 3 | `$CI_COMMIT_REF_NAME !~ $PROD_REF && ... !~ $INTEG_REF` | when: on_success (по умолч.) | Запуск только в не-прод и не-интег ветках   |
+
+### ansible-integration
+Применение кода (apply) после слияния в интеграционную ветку.
+
+| № | Условие (if)                                          | Результат (если ИСТИНА)      | Описание логики                                 |
+|---|-------------------------------------------------------|------------------------------|-------------------------------------------------|
+| 1 | `$ANSIBLE_INTEG_PLAYBOOK_FILE == null \|\| ... == ""` | when: never                  | Исключить, если не задан плейбук для интеграции |
+| 2 | `$CI_COMMIT_REF_NAME =~ $INTEG_REF`                   | when: on_success (по умолч.) | Запуск только в интеграционных ветках           |
+
+### ansible-staging
+Применение кода (apply) для окружения staging из продакшн-ветки.
+
+| № | Условие (if)                                            | Результат (если ИСТИНА)      | Описание логики                              |
+|---|---------------------------------------------------------|------------------------------|----------------------------------------------|
+| 1 | `$ANSIBLE_STAGING_PLAYBOOK_FILE == null \|\| ... == ""` | when: never                  | Исключить, если не задан плейбук для staging |
+| 2 | `$CI_COMMIT_REF_NAME =~ $PROD_REF`                      | when: on_success (по умолч.) | Запуск только в продакшн-ветках              |
+
+### ansible-production
+Применение кода (apply) в продакшн-инфраструктуру.
+
+| № | Условие (if)                                         | Результат (если ИСТИНА)      | Описание логики                                         |
+|---|------------------------------------------------------|------------------------------|---------------------------------------------------------|
+| 1 | `$CI_COMMIT_REF_NAME !~ $PROD_REF`                   | when: never                  | Исключить запуск во всех ветках, кроме ветки продакшена |
+| 2 | `$ANSIBLE_PROD_PLAYBOOK_FILE == null \|\| ... == ""` | when: never                  | Исключить, если не задан плейбук для продакшена         |
+| 3 | `$ANSIBLE_PROD_DEPLOY_STRATEGY == "manual"`          | when: manual                 | Ручной запуск деплоя                                    |
+| 4 | `$ANSIBLE_PROD_DEPLOY_STRATEGY == "auto"`            | when: on_success (по умолч.) | Автоматический запуск деплоя                            |
+
+---
+
+# DELETE (CLEANUP)
+
+| Настройка параметра | Значение в коде     | Описание логики                       | Действие GitLab                              |
+|---------------------|---------------------|---------------------------------------|----------------------------------------------|
+| Влияние на пайплайн | allow_failure: true | Ошибка удаления считается некритичной | Пайплайн остается зеленым/варнингом при сбое |
+
+### ansible-cleanup-review
+Очистка инфраструктуры в ветках разработчиков.
+
+| № | Условие (if)                                                                                                            | Результат (если ИСТИНА)           | Описание логики                                                           |
+|---|-------------------------------------------------------------------------------------------------------------------------|-----------------------------------|---------------------------------------------------------------------------|
+| 1 | `$CI_COMMIT_TAG`                                                                                                        | when: never                       | Исключить появление кнопки уничтожения на Git-тегах                       |
+| 2 | `$CI_COMMIT_REF_NAME =~ $PROD_REF \|\| ... =~ $INTEG_REF`                                                               | when: never                       | Исключить запуск в ветках интеграции и продакшена                         |
+| 3 | `($ANSIBLE_REVIEW_CLEANUP_PLAYBOOK_FILE != null && ... != "") \|\| ($ANSIBLE_REVIEW_CLEANUP_TAGS != null && ... != "")` | when: manual, allow_failure: true | Показывает кнопку удаления только если задан плейбук или теги для очистки |
+
+### ansible-cleanup-integration
+Очистка инфраструктуры в интеграционной ветке.
+
+| № | Условие (if)                                                                                                          | Результат (если ИСТИНА)           | Описание логики                                                           |
+|---|-----------------------------------------------------------------------------------------------------------------------|-----------------------------------|---------------------------------------------------------------------------|
+| 1 | `$CI_COMMIT_REF_NAME !~ $INTEG_REF`                                                                                   | when: never                       | Исключить запуск, если это не интеграционная ветка                        |
+| 2 | `($ANSIBLE_INTEG_CLEANUP_PLAYBOOK_FILE != null && ... != "") \|\| ($ANSIBLE_INTEG_CLEANUP_TAGS != null && ... != "")` | when: manual, allow_failure: true | Показывает кнопку удаления только если задан плейбук или теги для очистки |
+
+### ansible-cleanup-staging
+Очистка инфраструктуры staging из продакшн-ветки.
+
+| № | Условие (if)                                                                                                              | Результат (если ИСТИНА)           | Описание логики                                                           |
+|---|---------------------------------------------------------------------------------------------------------------------------|-----------------------------------|---------------------------------------------------------------------------|
+| 1 | `$CI_COMMIT_REF_NAME !~ $PROD_REF`                                                                                        | when: never                       | Исключить запуск, если это не продакшн-ветка                              |
+| 2 | `($ANSIBLE_STAGING_CLEANUP_PLAYBOOK_FILE != null && ... != "") \|\| ($ANSIBLE_STAGING_CLEANUP_TAGS != null && ... != "")` | when: manual, allow_failure: true | Показывает кнопку удаления только если задан плейбук или теги для очистки |
 
 
-## Getting started
+### variables
+```yaml
+variables:
+  # default production ref name (pattern)
+  PROD_REF: /^(master|main)$/
+  # default integration ref name (pattern)
+  INTEG_REF: /^develop$/
+  # Включение тестов вне зависимости от типа события (.test-policy:)
+  ADAPTIVE_PIPELINE_DISABLED: "true"
+```
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+### stages
+```yaml
+stages:
+  - build           # ansible-lint-review, ansible-lint-integration, ansible-lint-staging, ansible-lint-production
+  - test            # ansible-checkov
+  - package-build   # Нет job
+  - package-test    # Нет job
+  - infra           # Нет job
+  - deploy          # ansible-review, ansible-integration, ansible-staging,
+                    # ansible-cleanup-review, ansible-cleanup-integration, ansible-cleanup-staging
+  - acceptance      # Нет job
+  - publish         # Нет job
+  - infra-prod      # Нет job
+  - production      # ansible-production
+```
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+### extends
+```yaml
+extends:
+  .ansible-base:
+    ansible-checkov:
+    .ansible-lint:
+      ansible-lint-review:
+      ansible-lint-integration:
+      ansible-lint-staging:
+      ansible-lint-production:
+    .ansible-env-base:
+      .ansible-deploy:
+        ansible-review:
+        ansible-integration:
+        ansible-staging:
+        ansible-production:
+      .ansible-cleanup:
+        ansible-cleanup-review:
+        ansible-cleanup-integration:
+        ansible-cleanup-staging:
+```
 
-## Add your files
+### workflow.rules
 
-* [Create](https://docs.gitlab.com/user/project/repository/web_editor/#create-a-file) or [upload](https://docs.gitlab.com/user/project/repository/web_editor/#upload-a-file) files
-* [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+```yaml
+.tbc-workflow-rules:
+  skip-back-merge:                            # Не запускать при обратном MR (из прод в feature)
+  prefer-mr-pipeline:                         # => when: never
+    - это обычный commit в ветку
+    - и для этой ветки уже есть открытый MR
+    - и ветка не prod и не integration
+  extended-skip-ci:                           # Поиск в CI_COMMIT_MESSAGE паттерна [skip ci on ...]
+    - "*tag" && $CI_COMMIT_TAG                # Не запускать на тэге
+    - "*branch" && $CI_COMMIT_BRANCH          # Не запускать при обычном коммите
+    - "*mr" && $CI_MERGE_REQUEST_ID           # Не запускать при MR
+    - "*default" && $CI_COMMIT_REF_NAME =~ $CI_DEFAULT_BRANCH  # Не запускать на ветке по умолчанию
+    - "*prod" && $CI_COMMIT_REF_NAME =~ $PROD_REF  # Не запускать на продакшене
+    - "*integ" && $CI_COMMIT_REF_NAME =~ $INTEG_REF # Не запускать на интеграции
+    - "*dev" && $CI_COMMIT_REF_NAME !~ $PROD_REF && $CI_COMMIT_REF_NAME !~ $INTEG_REF # Не запускать на продакшене и интеграции
 
 ```
-cd existing_repo
-git remote add origin https://gitlab.fizn.ru/library/cicd/examples/tbc-ansible.git
-git branch -M main
-git push -uf origin main
+
+### .test-policy
+Правила применения тестирования
+```yaml
+.test-policy:
+  - Это обычный commit -> on_success
+  - ADAPTIVE_PIPELINE_DISABLED == "true" -> on_success
+  - Ветка интеграции или релиза -> on_success
+  - Это не MR и нет открытых -> manual && allow_failure=true
+  - '$CI_MERGE_REQUEST_TITLE =~ /^Draft:.*/' ->  on_success && allow_failure=true
+  - on_success
 ```
-
-## Integrate with your tools
-
-* [Set up project integrations](https://gitlab.fizn.ru/library/cicd/examples/tbc-ansible/-/settings/integrations)
-
-## Collaborate with your team
-
-* [Invite team members and collaborators](https://docs.gitlab.com/user/project/members/)
-* [Create a new merge request](https://docs.gitlab.com/user/project/merge_requests/creating_merge_requests/)
-* [Automatically close issues from merge requests](https://docs.gitlab.com/user/project/issues/managing_issues/#closing-issues-automatically)
-* [Enable merge request approvals](https://docs.gitlab.com/user/project/merge_requests/approvals/)
-* [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
-
-## Test and Deploy
-
-Use the built-in continuous integration in GitLab.
-
-* [Get started with GitLab CI/CD](https://docs.gitlab.com/ci/quick_start/)
-* [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/user/application_security/sast/)
-* [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/topics/autodevops/requirements/)
-* [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/user/clusters/agent/)
-* [Set up protected environments](https://docs.gitlab.com/ci/environments/protected_environments/)
-
-***
-
-# Editing this README
-
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
-
-## Suggestions for a good README
-
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
-
-## Name
-Choose a self-explaining name for your project.
-
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
-
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
-
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
-
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
-
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
-
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
-
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.

@@ -1,0 +1,260 @@
+include:
+
+  - component: $CI_SERVER_FQDN/library/to-be-continuous/Ansible/gitlab-ci-ansible@main
+    inputs:
+      ## common
+      # description: The Docker image used to run Ansible. The image may contain your Ansible sources. set the version required by your project
+      # default: 'docker.io/cytopia/ansible:latest-tools'
+      # ANSIBLE_IMAGE
+      image: "docker.io/cytopia/ansible:latest-tools"
+      # description: Ansible project root directory
+      # default: '.'
+      # ANSIBLE_PROJECT_DIR
+      project-dir: "."
+      # description: Base application name
+      # default: '$CI_PROJECT_NAME'
+      # ANSIBLE_BASE_APP_NAME
+      base-app-name: "$CI_PROJECT_NAME"
+      # description: |-
+      #   The default environments url (only define for static environment URLs declaration)
+      #   _supports late variable expansion (ex: `https://%{environment_name}.acme.com`)_
+      # default: ''
+      # ANSIBLE_ENVIRONMENT_URL
+      environment-url: "https://example.com/"
+      # description: |-
+      #   Extra [GitLab environments](https://docs.gitlab.com/ci/environments/) namespace _(only required when deploying multiple environments)_
+      #   :warning: must start with a slash `/`
+      # default: ''
+      # ANSIBLE_ENVIRONMENT_NAMESPACE
+      environment-namespace: ""
+      # description: The Ansible SSH public key associated to the private key to be use in all stages (can be overridden per env)
+      # default: ''
+      # ANSIBLE_DEFAULT_PUBLIC_KEY
+      default-public-key: ""
+      # description: Backward compatibility. Use `default-public-key` instead
+      # default: ''
+      # ANSIBLE_PUBLIC_KEY
+      public-key: ""
+      # description: The default inventory, if used
+      # default: ''
+      # ANSIBLE_DEFAULT_INVENTORY
+      default-inventory: "src/inventory.json"
+      # description: The default tags, if used
+      # default: ''
+      # ANSIBLE_DEFAULT_TAGS
+      default-tags: "stage2" # stage1,stage2,stage3
+      # description: Optional default args to add to the ansible-playbook command line
+      # default: ''
+      # ANSIBLE_DEFAULT_EXTRA_ARGS
+      default-extra-args: ""
+      # description: Forces color on Ansible output
+      # default: true
+      # ANSIBLE_FORCE_COLOR
+      force-color: true
+      # description: The file used to install roles and collections with `ansible-galaxy install`
+      # default: 'requirements.yml'
+      # ANSIBLE_REQUIREMENTS_FILE
+      requirements-file: "requirements.yml"
+      # description: '`ansible-galaxy install` command [extra options](https://docs.ansible.com/ansible/latest/cli/ansible-galaxy.html#role-install)'
+      # default: ''
+      # ANSIBLE_GALAXY_EXTRA_ARGS
+      galaxy-extra-args: ""
+      # description: The Ansible scripts base directory (relative to `$ANSIBLE_PROJECT_DIR`)
+      # default: '.'
+      # ANSIBLE_SCRIPTS_DIR
+      scripts-dir: "."
+      # description: Enable or disable the SSH host key checking
+      # default: false
+      # ANSIBLE_HOST_KEY_CHECKING
+      host-key-checking: false
+      ## lint
+      # description: Disable Ansible Lint
+      # default: false
+      # ANSIBLE_LINT_DISABLED
+      lint-disabled: false
+      # description: The Docker image used to run Ansible Lint.
+      # default: 'docker.io/haxorof/ansible-lint:latest'
+      # ANSIBLE_LINT_IMAGE
+      lint-image: "docker.io/haxorof/ansible-lint:latest"
+      ## review
+      # description: The application name for review env (only define to override default)
+      # default: ''
+      # ANSIBLE_REVIEW_APP_NAME
+      review-app-name: ""
+      # description: The review environments url _(only define for static environment URLs declaration and if different from default)_
+      # default: ''
+      # ANSIBLE_REVIEW_ENVIRONMENT_URL
+      review-environment-url: ""
+      # description: The inventory for `review` env (only define to override default)
+      # default: ''
+      # ANSIBLE_REVIEW_INVENTORY
+      review-inventory: ""
+      # description: The tags for `review` env (only define to override default)
+      # default: ''
+      # ANSIBLE_REVIEW_TAGS
+      review-tags: ""
+      # description: The tags to cleanup the `review` env
+      # default: ''
+      # ANSIBLE_REVIEW_CLEANUP_TAGS
+      review-cleanup-tags: ""
+      # description: The command line extra args for `review` env (only define to override default)
+      # default: ''
+      # ANSIBLE_REVIEW_EXTRA_ARGS
+      review-extra-args: ""
+      # description: The amount of time before GitLab will automatically stop `review` environments
+      # default: '4 hours'
+      # ANSIBLE_REVIEW_AUTOSTOP_DURATION
+      review-autostop-duration: "4 hours"
+      # description: The playbook filename for `review` env
+      # default: ''
+      # ANSIBLE_REVIEW_PLAYBOOK_FILE
+      review-playbook-file: ""
+      # description: The playbook filename to cleanup `review` env (only define if different from deployment playbook)
+      # default: ''
+      # ANSIBLE_REVIEW_CLEANUP_PLAYBOOK_FILE
+      review-cleanup-playbook-file: ""
+      # description: The SSH public key associated to the private key to be use in `review` env (only define to override default)
+      # default: ''
+      # ANSIBLE_REVIEW_PUBLIC_KEY
+      review-public-key: ""
+      ## integration
+      # description: The application name for integration env (only define to override default)
+      # default: ''
+      # ANSIBLE_INTEG_APP_NAME
+      integ-app-name: ""
+      # description: The amount of time before GitLab will automatically stop the `integration` env
+      # default: 'never'
+      # ANSIBLE_INTEG_AUTOSTOP_DURATION
+      integ-autostop-duration: "never"
+      # description: The integration environment url _(only define for static environment URLs declaration and if different from default)_
+      # default: ''
+      # ANSIBLE_INTEG_ENVIRONMENT_URL
+      integ-environment-url: ""
+      # description: The inventory for `integration` env (only define to override default)
+      # default: ''
+      # ANSIBLE_INTEG_INVENTORY
+      integ-inventory: ""
+      # description: The tags for `integration` env (only define to override default)
+      # default: ''
+      # ANSIBLE_INTEG_TAGS
+      integ-tags: ""
+      # description: The tags to cleanup the `integration` env
+      # default: ''
+      # ANSIBLE_INTEG_CLEANUP_TAGS
+      integ-cleanup-tags: ""
+      # description: The command line extra args for `integration` env (only define to override default)
+      # default: ''
+      # ANSIBLE_INTEG_EXTRA_ARGS
+      integ-extra-args: ""
+      # description: The playbook filename for `integration` env
+      # default: ''
+      # ANSIBLE_INTEG_PLAYBOOK_FILE
+      integ-playbook-file: ""
+      # description: The playbook filename to cleanup `integration` env (only define if different from deployment playbook)
+      # default: ''
+      # ANSIBLE_INTEG_CLEANUP_PLAYBOOK_FILE
+      integ-cleanup-playbook-file: ""
+      # description: The SSH public key associated to the private key to be use in `integration` env (only define to override default)
+      # default: ''
+      # ANSIBLE_INTEG_PUBLIC_KEY
+      integ-public-key: ""
+      ## staging
+      # description: The application name for staging env (only define to override default)
+      # default: ''
+      # ANSIBLE_STAGING_APP_NAME
+      staging-app-name: ""
+      # description: The amount of time before GitLab will automatically stop the `staging` env
+      # default: 'never'
+      # ANSIBLE_STAGING_AUTOSTOP_DURATION
+      staging-autostop-duration: "1 hours"
+      # description: The staging environment url _(only define for static environment URLs declaration and if different from default)_
+      # default: ''
+      # ANSIBLE_STAGING_ENVIRONMENT_URL
+      staging-environment-url: ""
+      # description: The inventory for `staging` env (only define to override default)
+      # default: ''
+      # ANSIBLE_STAGING_INVENTORY
+      staging-inventory: ""
+      # description: The tags for `staging` env (only define to override default)
+      # default: ''
+      # ANSIBLE_STAGING_TAGS
+      staging-tags: ""
+      # description: The tags to cleanup the `staging` env
+      # default: ''
+      # ANSIBLE_STAGING_CLEANUP_TAGS
+      staging-cleanup-tags: "cleanup"
+      # description: The command line extra args for `staging` env (only define to override default)
+      # default: ''
+      # ANSIBLE_STAGING_EXTRA_ARGS
+      staging-extra-args: ""
+      # description: The playbook filename for `staging` env
+      # default: ''
+      # ANSIBLE_STAGING_PLAYBOOK_FILE
+      staging-playbook-file: "src/playbook.yml"
+      # description: The playbook filename to cleanup `staging` env (only define if different from deployment playbook)
+      # default: ''
+      # ANSIBLE_STAGING_CLEANUP_PLAYBOOK_FILE
+      staging-cleanup-playbook-file: ""
+      # description: The SSH public key associated to the private key to be use in `staging` env (only define to override default)
+      # default: ''
+      # ANSIBLE_STAGING_PUBLIC_KEY
+      staging-public-key: ""
+      ## production
+      # description: The application name for production env (only define to override default)
+      # default: ''
+      # ANSIBLE_PROD_APP_NAME
+      prod-app-name: ""
+      # description: The production environment url _(only define for static environment URLs declaration and if different from default)_
+      # default: ''
+      # ANSIBLE_PROD_ENVIRONMENT_URL
+      prod-environment-url: ""
+      # description: Defines the deployment to production strategy. (options: `manual`, `auto`)
+      # default: 'manual'
+      # ANSIBLE_PROD_DEPLOY_STRATEGY
+      prod-deploy-strategy: "manual"
+      # description: The inventory for `production` env (only define to override default)
+      # default: ''
+      # ANSIBLE_PROD_INVENTORY
+      prod-inventory: ""
+      # description: The tags for `production` env (only define to override default)
+      # default: ''
+      # ANSIBLE_PROD_TAGS
+      prod-tags: ""
+      # description: The command line extra args for `production` env (only define to override default)
+      # default: ''
+      # ANSIBLE_PROD_EXTRA_ARGS
+      prod-extra-args: ""
+      # description: The playbook filename for `production` env
+      # default: ''
+      # ANSIBLE_PROD_PLAYBOOK_FILE
+      prod-playbook-file: ""
+      # description: The SSH public key associated to the private key to be use in `production` env (only define to override default)
+      # default: ''
+      # ANSIBLE_PROD_PUBLIC_KEY
+      prod-public-key: ""
+      ## checkov
+      # description: Disable checkov
+      # default: false
+      # ANSIBLE_CHECKOV_DISABLED
+      checkov-disabled: true
+      # description: checkov docker image
+      # default: 'docker.io/bridgecrew/checkov:latest'
+      # ANSIBLE_CHECKOV_IMAGE
+      checkov-image: "docker.io/bridgecrew/checkov:latest"
+      # description: checkov [options and args](https://www.checkov.io/2.Basics/CLI%20Command%20Reference.html)
+      # default: '--framework ansible'
+      # ANSIBLE_CHECKOV_ARGS
+      checkov-args: "--framework ansible"
+
+stages:
+  - build           # ansible-lint-review, ansible-lint-integration, ansible-lint-staging, ansible-lint-production
+  - test            # ansible-checkov
+  - package-build   # Нет job
+  - package-test    # Нет job
+  - infra           # Нет job
+  - deploy          # ansible-review, ansible-integration, ansible-staging,
+  # ansible-cleanup-review, ansible-cleanup-integration, ansible-cleanup-staging
+  - acceptance      # Нет job
+  - publish         # Нет job
+  - infra-prod      # Нет job
+  - production      # ansible-production
